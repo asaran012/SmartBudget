@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartBudget</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F4EF;
+    --surface: #FFFFFF;
+    --border: #E2DDD6;
+    --text: #1A1714;
+    --muted: #8C8479;
+    --accent: #2D6A4F;
+    --accent-light: #E8F4EE;
+    --warn: #B5451B;
+    --warn-light: #FDF0EB;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Fraunces', serif;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: var(--sans);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── header ── */
+  header {
+    padding: 28px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .logo {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .logo-name {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .logo-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  .status-dot {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2.5s ease infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── main layout ── */
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px;
+  }
+
+  /* ── upload zone ── */
+  .upload-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .upload-title {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+
+  .upload-sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+
+  .drop-label {
+    font-size: 15px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .drop-label strong {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .drop-hint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .file-selected {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--accent);
+    font-family: var(--mono);
+  }
+
+  .upload-btn {
+    margin-top: 24px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 36px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.01em;
+  }
+
+  .upload-btn:hover { background: #235C42; transform: translateY(-1px); }
+  .upload-btn:disabled { background: var(--muted); cursor: not-allowed; transform: none; }
+
+  /* ── progress ── */
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 20px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    display: none;
+  }
+
+  /* ── result cards ── */
+  .results { display: none; }
+
+  .results-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .results-title {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 300;
+  }
+
+  .results-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.warn   { color: var(--warn); }
+
+  /* ── insight box ── */
+  .insight-box {
+    background: var(--accent-light);
+    border: 1px solid #B8DEC9;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+  }
+
+  .insight-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .insight-text {
+    font-size: 14px;
+    line-height: 1.8;
+    color: #1A3D2B;
+    font-family: var(--serif);
+    font-style: italic;
+  }
+
+  /* ── anomalies ── */
+  .section-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .anomaly-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .anomaly-card {
+    background: var(--warn-light);
+    border: 1px solid #EAC0B0;
+    border-radius: 10px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .anomaly-amount {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--warn);
+    white-space: nowrap;
+    min-width: 70px;
+  }
+
+  .anomaly-info { flex: 1; }
+
+  .anomaly-desc {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .anomaly-explanation {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .anomaly-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--warn);
+    background: #F9D8CC;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  /* ── transactions table ── */
+  .txn-table {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .txn-table-header {
+    display: grid;
+    grid-template-columns: 100px 1fr 120px 110px;
+    padding: 12px 20px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .txn-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 120px 110px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    align-items: center;
+    transition: background 0.15s;
+  }
+
+  .txn-row:last-child { border-bottom: none; }
+  .txn-row:hover { background: var(--bg); }
+
+  .txn-date { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .txn-desc { font-weight: 500; }
+
+  .txn-cat {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    display: inline-block;
+  }
+
+  .txn-amount { font-family: var(--mono); font-size: 13px; text-align: right; }
+  .txn-amount.expense { color: var(--text); }
+  .txn-amount.income  { color: var(--accent); }
+
+  .show-more-btn {
+    width: 100%;
+    padding: 12px;
+    background: none;
+    border: none;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .show-more-btn:hover { background: var(--bg); color: var(--text); }
+
+  /* ── error ── */
+  .error-box {
+    background: var(--warn-light);
+    border: 1px solid #EAC0B0;
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 13px;
+    color: var(--warn);
+    margin-top: 16px;
+    display: none;
+    font-family: var(--mono);
+  }
+
+  /* ── category breakdown ── */
+  .cat-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+
+  .cat-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .cat-name { width: 120px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .cat-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .cat-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+  .cat-amt { width: 80px; text-align: right; font-family: var(--mono); font-size: 12px; color: var(--text); }
+
+  /* ── grouped transactions ── */
+  .cat-group {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .cat-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+
+  .cat-group-header:hover { background: var(--bg); }
+
+  .cat-group-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .cat-group-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .cat-group-total { color: var(--text); font-weight: 500; }
+
+  .cat-group-chevron {
+    transition: transform 0.2s;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .cat-group.open .cat-group-chevron { transform: rotate(180deg); }
+
+  .cat-group-body { display: none; border-top: 1px solid var(--border); }
+  .cat-group.open .cat-group-body { display: block; }
+
+  .cat-txn-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 100px;
+    padding: 11px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    align-items: center;
+    transition: background 0.15s;
+  }
+
+  .cat-txn-row:last-child { border-bottom: none; }
+  .cat-txn-row:hover { background: var(--bg); }
+
+  @media (max-width: 600px) {
+    .cat-txn-row { grid-template-columns: 90px 1fr 80px; }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in { animation: fadeUp 0.4s ease forwards; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-name">SmartBudget</span>
+    <span class="logo-tag">/ AI PIPELINE</span>
+  </div>
+  <div class="status-dot">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusLabel">API CONNECTED</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- Upload -->
+  <div class="upload-section" id="uploadSection">
+    <div class="upload-title">Upload your bank statement</div>
+    <div class="upload-sub">CSV export from Chase, Bank of America, Wells Fargo, Capital One, or any standard format</div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".csv">
+      <div class="drop-icon">📄</div>
+      <div class="drop-label"><strong>Choose a file</strong> or drag it here</div>
+      <div class="drop-hint">Supports .csv · Chase · BoFA · Wells Fargo · Capital One</div>
+    </div>
+
+    <div class="file-selected" id="fileSelected" style="display:none">
+      ✓ <span id="fileName"></span>
+    </div>
+
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-label" id="progressLabel"></div>
+
+    <button class="upload-btn" id="uploadBtn" onclick="uploadFile()" disabled>
+      Run Pipeline →
+    </button>
+
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+
+    <div class="results-header">
+      <div class="results-title">Analysis complete</div>
+      <div class="results-meta" id="resultsMeta"></div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="cards-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Spent</div>
+        <div class="stat-value accent" id="statSpent">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Transactions</div>
+        <div class="stat-value" id="statCount">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Anomalies Flagged</div>
+        <div class="stat-value warn" id="statAnomalies">—</div>
+      </div>
+    </div>
+
+    <!-- AI Insight -->
+    <div class="insight-box" id="insightBox" style="display:none">
+      <div class="insight-tag">⟡ AI Insight</div>
+      <div class="insight-text" id="insightText"></div>
+    </div>
+
+    <!-- Anomalies -->
+    <div id="anomaliesSection" style="display:none">
+      <div class="section-title">Flagged Anomalies</div>
+      <div class="anomaly-list" id="anomalyList"></div>
+    </div>
+
+    <!-- Transactions grouped by category -->
+    <div class="section-title">Transactions by Category</div>
+    <div id="txnGrouped"></div>
+
+    <button class="upload-btn" onclick="resetPage()" style="background:#8C8479; margin-top: 8px;">
+      ← Upload another file
+    </button>
+  </div>
+
+</main>
+
+<script>
+  const API = 'http://127.0.0.1:8000';
+  let allTransactions = [];
+
+  // ── file input ──────────────────────────────────────────────────────────────
+  const fileInput  = document.getElementById('fileInput');
+  const dropZone   = document.getElementById('dropZone');
+  const uploadBtn  = document.getElementById('uploadBtn');
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) onFileSelected(fileInput.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) onFileSelected(e.dataTransfer.files[0]);
+  });
+
+  function onFileSelected(file) {
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileSelected').style.display = 'flex';
+    uploadBtn.disabled = false;
+
+    // Replace file input with the dropped file
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+  }
+
+  // ── upload pipeline ─────────────────────────────────────────────────────────
+  async function uploadFile() {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    uploadBtn.disabled = true;
+    hideError();
+    setProgress(10, 'Parsing CSV...');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      // Stage 1: upload
+      const uploadRes = await fetch(`${API}/transactions/upload`, { method: 'POST', body: formData });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json();
+        throw new Error(err.detail || 'Upload failed');
+      }
+      const uploadData = await uploadRes.json();
+      setProgress(40, 'Categorizing transactions...');
+
+      // Stage 2: fetch transactions
+      await sleep(400);
+      setProgress(60, 'Detecting anomalies...');
+      const [txnRes, anomalyRes] = await Promise.all([
+        fetch(`${API}/transactions`),
+        fetch(`${API}/anomalies`),
+      ]);
+      const txnData     = await txnRes.json();
+      const anomalyData = await anomalyRes.json();
+
+      setProgress(80, 'Generating AI insights...');
+      await sleep(800);
+
+      // Stage 3: insights (may be slow)
+      let insightData = null;
+      try {
+        const insightRes = await fetch(`${API}/insights`);
+        insightData = await insightRes.json();
+      } catch(e) { /* insights optional */ }
+
+      setProgress(100, 'Done!');
+      await sleep(300);
+
+      renderResults(uploadData, txnData, anomalyData, insightData);
+
+    } catch (err) {
+      showError(err.message);
+      uploadBtn.disabled = false;
+      hideProgress();
+    }
+  }
+
+  // ── render ──────────────────────────────────────────────────────────────────
+  function renderResults(upload, txnData, anomalyData, insightData) {
+    document.getElementById('uploadSection').style.display = 'none';
+    const results = document.getElementById('results');
+    results.style.display = 'block';
+    results.classList.add('fade-in');
+
+    // Meta
+    document.getElementById('resultsMeta').textContent =
+      `${upload.transactions_imported} transactions · ${upload.anomalies_flagged} anomalies`;
+
+    // Stats
+    document.getElementById('statSpent').textContent   = '₹' + txnData.total_spent.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('statCount').textContent   = txnData.count;
+    document.getElementById('statAnomalies').textContent = upload.anomalies_flagged;
+
+    // AI insight
+    if (insightData?.ai_insight) {
+      document.getElementById('insightText').textContent = insightData.ai_insight;
+      document.getElementById('insightBox').style.display = 'block';
+    }
+
+    // Anomalies
+    if (anomalyData.anomalies?.length > 0) {
+      document.getElementById('anomaliesSection').style.display = 'block';
+      renderAnomalies(anomalyData.anomalies);
+    }
+
+    // Transactions grouped
+    allTransactions = txnData.transactions;
+    renderGroupedTransactions(allTransactions);
+  }
+
+  function renderCategories(byCategory) {
+    const grid  = document.getElementById('catGrid');
+    const max   = Math.max(...Object.values(byCategory));
+    grid.innerHTML = '';
+
+    Object.entries(byCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .forEach(([cat, amt]) => {
+        const pct = Math.round((amt / max) * 100);
+        grid.innerHTML += `
+          <div class="cat-row fade-in">
+            <span class="cat-name">${cat}</span>
+            <div class="cat-bar-wrap">
+              <div class="cat-bar" style="width:0%" data-pct="${pct}"></div>
+            </div>
+            <span class="cat-amt">₹${amt.toFixed(2)}</span>
+          </div>`;
+      });
+
+    // Animate bars
+    setTimeout(() => {
+      document.querySelectorAll('.cat-bar').forEach(bar => {
+        bar.style.width = bar.dataset.pct + '%';
+      });
+    }, 100);
+  }
+
+  function renderAnomalies(anomalies) {
+    const list = document.getElementById('anomalyList');
+    list.innerHTML = anomalies.map(a => `
+      <div class="anomaly-card fade-in">
+        <div class="anomaly-amount">₹${a.amount.toFixed(2)}</div>
+        <div class="anomaly-info">
+          <div class="anomaly-desc">${a.description}</div>
+          <div class="anomaly-explanation">${a.explanation}</div>
+        </div>
+        <div class="anomaly-badge">${a.reason === 'large_one_off' ? 'ONE-OFF' : a.ratio + 'x NORMAL'}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderGroupedTransactions(txns) {
+    const grouped = {};
+    txns.forEach(t => {
+      const cat = t.category || 'Other';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(t);
+    });
+
+    // Sort categories by total spend descending
+    const sorted = Object.entries(grouped).sort((a, b) => {
+      const sumA = a[1].reduce((s, t) => s + Math.abs(t.amount), 0);
+      const sumB = b[1].reduce((s, t) => s + Math.abs(t.amount), 0);
+      return sumB - sumA;
+    });
+
+    const container = document.getElementById('txnGrouped');
+    container.innerHTML = sorted.map(([cat, rows]) => {
+      const total = rows.reduce((s, t) => s + Math.abs(t.amount), 0);
+      const rowsHtml = rows.map(t => {
+        const isIncome = t.amount > 0;
+        const amt = (isIncome ? '+' : '-') + '₹' + Math.abs(t.amount).toFixed(2);
+        return `
+          <div class="cat-txn-row">
+            <span class="txn-date">${t.date}</span>
+            <span class="txn-desc">${t.description}</span>
+            <span class="txn-amount ${isIncome ? 'income' : 'expense'}" style="text-align:right">${amt}</span>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="cat-group">
+          <div class="cat-group-header" onclick="toggleGroup(this)">
+            <span class="cat-group-title">${cat}</span>
+            <div class="cat-group-meta">
+              <span>${rows.length} transaction${rows.length > 1 ? 's' : ''}</span>
+              <span class="cat-group-total">₹${total.toFixed(2)}</span>
+              <span class="cat-group-chevron">▼</span>
+            </div>
+          </div>
+          <div class="cat-group-body">${rowsHtml}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function toggleGroup(header) {
+    header.parentElement.classList.toggle('open');
+  }
+
+  // ── helpers ─────────────────────────────────────────────────────────────────
+  function setProgress(pct, label) {
+    document.getElementById('progressBar').style.display  = 'block';
+    document.getElementById('progressLabel').style.display = 'block';
+    document.getElementById('progressFill').style.width   = pct + '%';
+    document.getElementById('progressLabel').textContent  = label;
+  }
+
+  function hideProgress() {
+    document.getElementById('progressBar').style.display  = 'none';
+    document.getElementById('progressLabel').style.display = 'none';
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = '⚠ ' + msg;
+    box.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('errorBox').style.display = 'none';
+  }
+
+  function resetPage() {
+    document.getElementById('uploadSection').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('fileSelected').style.display = 'none';
+    uploadBtn.disabled = true;
+    hideProgress();
+    hideError();
+    fileInput.value = '';
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  // ── CORS check on load ───────────────────────────────────────────────────────
+  fetch(`${API}/`)
+    .then(() => {})
+    .catch(() => {
+      document.getElementById('statusDot').style.background = '#B5451B';
+      document.getElementById('statusLabel').textContent = 'API OFFLINE';
+    });
+</script>
+</body>
+</html>
