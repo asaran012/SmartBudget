@@ -1,0 +1,51 @@
+{
+  "held_out_accuracy": 0.9967,
+  "macro_f1": 0.9963,
+  "train_seconds": 0.87,
+  "single_pred_latency_us": 891,
+  "unseen_merchant_accuracy": 0.5667,
+  "threshold_sweep": [
+    {
+      "threshold": 0.5,
+      "coverage": 0.9925,
+      "accuracy_on_covered": 0.9983,
+      "deferred_to_llm": 0.0075
+    },
+    {
+      "threshold": 0.6,
+      "coverage": 0.9867,
+      "accuracy_on_covered": 0.9983,
+      "deferred_to_llm": 0.0133
+    },
+    {
+      "threshold": 0.7,
+      "coverage": 0.965,
+      "accuracy_on_covered": 0.9991,
+      "deferred_to_llm": 0.035
+    },
+    {
+      "threshold": 0.8,
+      "coverage": 0.9208,
+      "accuracy_on_covered": 1.0,
+      "deferred_to_llm": 0.0792
+    },
+    {
+      "threshold": 0.85,
+      "coverage": 0.875,
+      "accuracy_on_covered": 1.0,
+      "deferred_to_llm": 0.125
+    },
+    {
+      "threshold": 0.9,
+      "coverage": 0.7633,
+      "accuracy_on_covered": 1.0,
+      "deferred_to_llm": 0.2367
+    },
+    {
+      "threshold": 0.95,
+      "coverage": 0.3658,
+      "accuracy_on_covered": 1.0,
+      "deferred_to_llm": 0.6342
+    }
+  ]
+}

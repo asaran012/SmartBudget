@@ -44,8 +44,19 @@ def init_db():
             created_at       TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS labeled_transactions (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            date             TEXT NOT NULL,
+            raw_description  TEXT NOT NULL,
+            amount           REAL NOT NULL,
+            channel          TEXT,
+            category         TEXT NOT NULL,
+            created_at       TEXT
+        );
+
         CREATE INDEX IF NOT EXISTS idx_txn_date     ON transactions(date);
         CREATE INDEX IF NOT EXISTS idx_txn_category ON transactions(category);
+        CREATE INDEX IF NOT EXISTS idx_labeled_category ON labeled_transactions(category);
     """)
     conn.commit()
     conn.close()
@@ -83,6 +94,39 @@ def save_anomalies(anomalies: list[dict]):
               a["amount"], a.get("category"), a.get("reason"),
               a.get("ratio"), a.get("explanation"), now)
              for a in anomalies],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def save_labeled_transaction(transaction: dict, category: str, channel: str):
+    conn = get_connection()
+    now = datetime.now().isoformat()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS labeled_transactions (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                date             TEXT NOT NULL,
+                raw_description  TEXT NOT NULL,
+                amount           REAL NOT NULL,
+                channel          TEXT,
+                category         TEXT NOT NULL,
+                created_at       TEXT
+            )
+        """)
+        conn.execute(
+            """INSERT INTO labeled_transactions
+               (date, raw_description, amount, channel, category, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                transaction["date"],
+                transaction["description"],
+                abs(float(transaction["amount"])),
+                channel,
+                category,
+                now,
+            ),
         )
         conn.commit()
     finally:

@@ -11,14 +11,20 @@ AI Assistant Usage:
     reliability.
 """
 
-import os
 import json
 import logging
+import os
+from pathlib import Path
 from typing import Optional
+
 from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from database.db import save_labeled_transaction
+from ml.ml_classifier import MLCategorizer
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY") or "missing-api-key")
 logger = logging.getLogger(__name__)
+ML_MODEL_PATH = "ml/model.joblib"
 
 CATEGORIES: dict[str, list[str]] = {
     "Rent":                 ["Rent"],
@@ -54,31 +60,60 @@ BATCH_SIZE = 30
 unclassified_log: list[dict] = []
 
 
+def _load_ml_model(model_path: str = ML_MODEL_PATH) -> Optional[MLCategorizer]:
+    if not Path(model_path).exists():
+        logger.warning("ML classifier model not found at %s; falling back to rules -> LLM", model_path)
+        return None
+
+    try:
+        return MLCategorizer(model_path, threshold=0.85)
+    except Exception as e:
+        logger.warning("ML classifier failed to load from %s; falling back to rules -> LLM: %s", model_path, e)
+        return None
+
+
+ml_model = _load_ml_model()
+
+
 def categorize_transactions(transactions: list[dict]) -> list[dict]:
     global unclassified_log
     unclassified_log = []
 
-    result     = []
-    needs_ai   = []
+    result = []
+    needs_ai = []
 
     for txn in transactions:
         cat = _keyword_match(txn["description"])
         if cat:
-            result.append({**txn, "category": cat, "categorized_by": "rules"})
-        else:
-            result.append({**txn, "category": None, "categorized_by": None})
-            needs_ai.append(len(result) - 1)
+            result.append({**txn, "category": cat, "categorized_by": "rule"})
+            continue
 
-    logger.info(f"Classified {len(result) - len(needs_ai)}/{len(transactions)} transactions, based on rules provided.")
+        cat, conf = _ml_classify(txn)
+        if cat:
+            result.append({**txn, "category": cat, "categorized_by": "ml"})
+            logger.debug("ML classified '%s' as %s (%.2f)", txn["description"], cat, conf)
+            continue
+
+        result.append({**txn, "category": None, "categorized_by": None})
+        needs_ai.append(len(result) - 1)
+
+    logger.info(
+        "Classified %s/%s transactions before GPT.",
+        len(result) - len(needs_ai),
+        len(transactions),
+    )
 
     if needs_ai:
         logger.info(f"Sending {len(needs_ai)} unknown transactions to GPT...")
-        descs      = [result[i]["description"] for i in needs_ai]
-        ai_cats    = _gpt_categorize_all(descs)
+        descs = [result[i]["description"] for i in needs_ai]
+        ai_results = _gpt_categorize_all(descs)
 
-        for idx, cat in zip(needs_ai, ai_cats):
-            result[idx]["category"]       = cat
-            result[idx]["categorized_by"] = "ai"
+        for idx, (cat, from_llm) in zip(needs_ai, ai_results):
+            result[idx]["category"] = cat
+            result[idx]["categorized_by"] = "llm"
+            channel = _infer_channel(result[idx])
+            if from_llm:
+                save_labeled_transaction(result[idx], cat, channel)
             if cat == "Other":
                 unclassified_log.append({
                     "description": result[idx]["description"],
@@ -111,7 +146,43 @@ def _keyword_match(description: str) -> Optional[str]:
     return None
 
 
-def _gpt_categorize_all(descriptions: list[str]) -> list[str]:
+def _ml_classify(txn: dict) -> tuple[Optional[str], float]:
+    if ml_model is None:
+        return None, 0.0
+
+    channel = _infer_channel(txn)
+    try:
+        return ml_model.classify(
+            txn["description"],
+            abs(float(txn["amount"])),
+            txn["date"],
+            channel,
+        )
+    except Exception as e:
+        logger.warning("ML classifier deferred after error for '%s': %s", txn["description"], e)
+        return None, 0.0
+
+
+def _infer_channel(txn: dict) -> str:
+    channel = txn.get("channel")
+    if channel:
+        return str(channel).upper()
+
+    desc = txn.get("description", "").upper()
+    if "NEFT" in desc:
+        return "NEFT"
+    if "IMPS" in desc:
+        return "IMPS"
+    if "ACH" in desc:
+        return "ACH"
+    if "POS" in desc:
+        return "POS"
+    if "UPI" in desc or "@" in desc:
+        return "UPI"
+    return "UPI"
+
+
+def _gpt_categorize_all(descriptions: list[str]) -> list[tuple[str, bool]]:
     all_categories = []
     total_batches  = (len(descriptions) + BATCH_SIZE - 1) // BATCH_SIZE
 
@@ -120,8 +191,8 @@ def _gpt_categorize_all(descriptions: list[str]) -> list[str]:
         batch_num = (i // BATCH_SIZE) + 1
         logger.info(f"GPT batch {batch_num}/{total_batches} ({len(batch)} transactions)...")
 
-        result = _gpt_categorize_batch(batch, batch_num)
-        all_categories.extend(result)
+        result, from_llm = _gpt_categorize_batch(batch, batch_num)
+        all_categories.extend(zip(result, from_llm))
 
         other_count = result.count("Other")
         if other_count:
@@ -132,7 +203,11 @@ def _gpt_categorize_all(descriptions: list[str]) -> list[str]:
     return all_categories
 
 
-def _gpt_categorize_batch(descriptions: list[str], batch_num: int = 1) -> list[str]:
+def _gpt_categorize_batch(descriptions: list[str], batch_num: int = 1) -> tuple[list[str], list[bool]]:
+    if not os.getenv("OPENAI_API_KEY"):
+        logger.error("Batch %s: OPENAI_API_KEY is not set; marking GPT fallback rows as Other", batch_num)
+        return ["Other"] * len(descriptions), [False] * len(descriptions)
+
     labels = [c for c in CATEGORIES.keys()] + ["Other"]
     prompt = f"""You are a bank transaction categorizer for an Indian user.
             Categorize each transaction into exactly one of: {', '.join(labels)}
@@ -162,16 +237,17 @@ def _gpt_categorize_batch(descriptions: list[str], batch_num: int = 1) -> list[s
             cats += ["Other"] * (len(descriptions) - len(cats))
 
         validated = [c if c in labels else "Other" for c in cats]
+        from_llm = [raw_cat in labels for raw_cat in cats]
 
         for desc, raw_cat, val in zip(descriptions, cats, validated):
             if val == "Other" and raw_cat not in labels:
                 logger.warning(f"Batch {batch_num}: invalid category '{raw_cat}' for '{desc}' → 'Other'")
 
-        return validated
+        return validated, from_llm
 
     except json.JSONDecodeError as e:
         logger.error(f"Batch {batch_num}: JSON parse failed — {e}")
-        return ["Other"] * len(descriptions)
+        return ["Other"] * len(descriptions), [False] * len(descriptions)
     except Exception as e:
         logger.error(f"Batch {batch_num}: GPT call failed — {e}")
-        return ["Other"] * len(descriptions)
+        return ["Other"] * len(descriptions), [False] * len(descriptions)
